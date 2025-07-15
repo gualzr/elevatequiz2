@@ -1,0 +1,446 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Elevate Quiz Funnel</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600&display=swap" rel="stylesheet">
+  <style>
+    :root {
+      --primary: #3b82f6;
+      --accent: #fbbf24;
+      --bg: #f9fafb;
+      --text: #1e293b;
+      --radius: 1.2em;
+    }
+    * { box-sizing: border-box; }
+    body {
+      font-family: 'Inter', sans-serif;
+      background: var(--bg);
+      color: var(--text);
+      margin: 0;
+      min-height: 100vh;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+    }
+    .container {
+      background: #fff;
+      border-radius: var(--radius);
+      box-shadow: 0 4px 24px rgba(30,41,59,0.08);
+      max-width: 420px;
+      width: 100%;
+      margin: 1.5em;
+      padding: 2em 1.5em 1.5em 1.5em;
+      display: flex;
+      flex-direction: column;
+      gap: 1.5em;
+    }
+    h1, h2, h3 {
+      margin: 0 0 0.5em 0;
+      font-weight: 600;
+    }
+    .question {
+      font-size: 1.1em;
+      margin-bottom: 1em;
+    }
+    .answers {
+      display: flex;
+      flex-direction: column;
+      gap: 0.75em;
+    }
+    button, .btn {
+      background: var(--primary);
+      color: #fff;
+      border: none;
+      border-radius: 0.7em;
+      padding: 0.9em 1.2em;
+      font-size: 1em;
+      font-weight: 600;
+      cursor: pointer;
+      transition: background 0.2s;
+    }
+    button:disabled, .btn:disabled {
+      background: #cbd5e1;
+      cursor: not-allowed;
+    }
+    button:hover:not(:disabled), .btn:hover:not(:disabled) {
+      background: #2563eb;
+    }
+    input[type="text"], input[type="email"] {
+      width: 100%;
+      padding: 0.8em;
+      border: 1px solid #e5e7eb;
+      border-radius: 0.6em;
+      font-size: 1em;
+      margin-bottom: 0.5em;
+    }
+    .hack {
+      background: var(--bg);
+      border-left: 4px solid var(--primary);
+      border-radius: 0.7em;
+      padding: 1em 1em 1em 1.2em;
+      margin-bottom: 1em;
+      font-size: 1em;
+    }
+    .consent {
+      display: flex;
+      align-items: center;
+      gap: 0.5em;
+      font-size: 0.98em;
+      margin-bottom: 1em;
+    }
+    .error {
+      color: #dc2626;
+      font-size: 0.97em;
+      margin-bottom: 0.5em;
+    }
+    @media (max-width: 500px) {
+      .container {
+        padding: 1.2em 0.5em 1em 0.5em;
+        margin: 0.5em;
+      }
+      h1 { font-size: 1.3em; }
+    }
+  </style>
+</head>
+<body>
+  <div class="container" id="app"></div>
+  <script>
+    // --- Quiz Data & Logic ---
+    const quiz = [
+      {
+        id: 'name',
+        question: "What's your first name?",
+        type: 'text',
+        placeholder: 'Enter your first name',
+        validate: v => v.trim().length > 1,
+        error: 'Please enter your first name.'
+      },
+      {
+        id: 'breakfast',
+        question: name => `Thanks, ${name}! What does a typical breakfast look like for you?`,
+        type: 'single',
+        options: [
+          { value: 'skip', label: 'I usually skip breakfast' },
+          { value: 'carbs', label: 'Mostly carbs (cereal, toast, pastries)' },
+          { value: 'protein', label: 'Protein-rich (eggs, yogurt, etc.)' },
+          { value: 'balanced', label: 'Balanced meal' },
+        ]
+      },
+      {
+        id: 'activity',
+        question: name => `How active are you, ${name}?`,
+        type: 'single',
+        options: [
+          { value: 'sedentary', label: 'Mostly sedentary' },
+          { value: 'light', label: 'Lightly active (walks, chores)' },
+          { value: 'moderate', label: 'Moderately active (exercise 2-3x/week)' },
+          { value: 'active', label: 'Very active (daily exercise)' },
+        ]
+      },
+      {
+        id: 'energy',
+        question: name => `Do you experience energy crashes during the day, ${name}?`,
+        type: 'single',
+        options: [
+          { value: 'often', label: 'Often' },
+          { value: 'sometimes', label: 'Sometimes' },
+          { value: 'rarely', label: 'Rarely' },
+        ]
+      },
+      {
+        id: 'cravings',
+        question: name => `How often do you get strong cravings, ${name}?`,
+        type: 'single',
+        options: [
+          { value: 'daily', label: 'Daily' },
+          { value: 'few', label: 'A few times a week' },
+          { value: 'rarely', label: 'Rarely' },
+        ]
+      },
+      {
+        id: 'goal',
+        question: name => `What's your main health goal right now, ${name}?`,
+        type: 'single',
+        options: [
+          { value: 'weight', label: 'Lose weight' },
+          { value: 'energy', label: 'More stable energy' },
+          { value: 'sugar', label: 'Better blood sugar control' },
+          { value: 'other', label: 'Other' },
+        ]
+      },
+    ];
+
+    // --- Hack Generation Logic ---
+    function generateHacks(answers) {
+      const name = answers.name;
+      const hacks = [];
+      // 1. Breakfast
+      if (answers.breakfast === 'skip') {
+        hacks.push(`Skipping meals? Try a protein-rich breakfast to stabilize energy and prevent cravings later, ${name}.`);
+      } else if (answers.breakfast === 'carbs') {
+        hacks.push(`Swap some carbs for protein at breakfast to keep blood sugar steady, ${name}.`);
+      } else if (answers.breakfast === 'protein') {
+        hacks.push(`Great job prioritizing protein in the morning, ${name}! Keep it up for steady energy.`);
+      } else if (answers.breakfast === 'balanced') {
+        hacks.push(`Balanced breakfasts are a strong foundation, ${name}. Notice how your energy feels on those days!`);
+      }
+      // 2. Activity
+      if (answers.activity === 'sedentary') {
+        hacks.push(`Try a 5-minute walk after meals to boost blood sugar control, ${name}.`);
+      } else if (answers.activity === 'light') {
+        hacks.push(`Light activity is a great start, ${name}. Consider adding short bursts of movement throughout your day.`);
+      } else if (answers.activity === 'moderate') {
+        hacks.push(`Moderate activity helps with weight and energy, ${name}. Keep it consistent!`);
+      } else if (answers.activity === 'active') {
+        hacks.push(`Awesome job staying active, ${name}! Notice how it impacts your cravings and energy.`);
+      }
+      // 3. Energy
+      if (answers.energy === 'often') {
+        hacks.push(`Frequent energy crashes? Try eating smaller, balanced meals every 3-4 hours, ${name}.`);
+      } else if (answers.energy === 'sometimes') {
+        hacks.push(`If you sometimes crash, check if it follows high-carb meals, ${name}. Adjusting your plate can help!`);
+      } else if (answers.energy === 'rarely') {
+        hacks.push(`Rare energy crashes? You're on the right track, ${name}!`);
+      }
+      // 4. Cravings
+      if (answers.cravings === 'daily') {
+        hacks.push(`Daily cravings? Make sure you're getting enough protein and fiber at each meal, ${name}.`);
+      } else if (answers.cravings === 'few') {
+        hacks.push(`A few cravings a week is normal, ${name}. Notice if they follow skipped meals or stress.`);
+      } else if (answers.cravings === 'rarely') {
+        hacks.push(`Rare cravings? That's a great sign, ${name}!`);
+      }
+      // 5. Goal
+      if (answers.goal === 'weight') {
+        hacks.push(`For weight loss, focus on protein, veggies, and healthy fats, ${name}. Track your progress!`);
+      } else if (answers.goal === 'energy') {
+        hacks.push(`For stable energy, avoid big carb spikes and stay hydrated, ${name}.`);
+      } else if (answers.goal === 'sugar') {
+        hacks.push(`For blood sugar, pair carbs with protein/fat and monitor your CGM trends, ${name}.`);
+      } else if (answers.goal === 'other') {
+        hacks.push(`Whatever your goal, small daily changes add up, ${name}. You've got this!`);
+      }
+      // Only show 5 hacks, one per answer
+      return hacks.slice(0, 5);
+    }
+
+    // --- UTM/Hidden Field Logic ---
+    function getUTMParams() {
+      const params = {};
+      const url = new URL(window.location.href);
+      for (const [key, value] of url.searchParams.entries()) {
+        if (key.startsWith('utm_') || key === 'ad_id') {
+          params[key] = value;
+        }
+      }
+      return params;
+    }
+
+    // --- Zapier Webhook URL (replace with your Zapier webhook) ---
+    const ZAPIER_WEBHOOK_URL = 'https://hooks.zapier.com/hooks/catch/123456/abcde'; // TODO: Replace with your Zapier webhook
+
+    // --- App State ---
+    let state = {
+      step: 0,
+      answers: {},
+      hacks: [],
+      email: '',
+      consent: false,
+      emailError: '',
+      consentError: '',
+      submitting: false,
+      submitted: false,
+    };
+
+    // --- Render Functions ---
+    function render() {
+      const app = document.getElementById('app');
+      app.innerHTML = '';
+      if (state.step < quiz.length) {
+        renderQuizStep(app);
+      } else if (state.step === quiz.length) {
+        renderHacks(app);
+      } else if (state.step === quiz.length + 1) {
+        renderEmailCapture(app);
+      } else {
+        renderThankYou(app);
+      }
+    }
+
+    function renderQuizStep(app) {
+      const q = quiz[state.step];
+      const name = state.answers.name || '';
+      const question = typeof q.question === 'function' ? q.question(name) : q.question;
+      const div = document.createElement('div');
+      div.innerHTML = `<h2>Elevate Quiz</h2>
+        <div class="question">${question}</div>`;
+      if (q.type === 'text') {
+        const input = document.createElement('input');
+        input.type = 'text';
+        input.placeholder = q.placeholder;
+        input.value = state.answers[q.id] || '';
+        input.autofocus = true;
+        input.addEventListener('input', e => {
+          state.answers[q.id] = e.target.value;
+        });
+        div.appendChild(input);
+        const error = document.createElement('div');
+        error.className = 'error';
+        error.style.display = 'none';
+        div.appendChild(error);
+        const btn = document.createElement('button');
+        btn.textContent = 'Next';
+        btn.onclick = () => {
+          if (!q.validate || q.validate(state.answers[q.id] || '')) {
+            state.step++;
+            render();
+          } else {
+            error.textContent = q.error;
+            error.style.display = 'block';
+          }
+        };
+        div.appendChild(btn);
+      } else if (q.type === 'single') {
+        const answersDiv = document.createElement('div');
+        answersDiv.className = 'answers';
+        q.options.forEach(opt => {
+          const btn = document.createElement('button');
+          btn.textContent = opt.label;
+          btn.onclick = () => {
+            state.answers[q.id] = opt.value;
+            state.step++;
+            render();
+          };
+          answersDiv.appendChild(btn);
+        });
+        div.appendChild(answersDiv);
+      }
+      app.appendChild(div);
+    }
+
+    function renderHacks(app) {
+      state.hacks = generateHacks(state.answers);
+      const name = state.answers.name;
+      const div = document.createElement('div');
+      div.innerHTML = `<h2>5 Personalized Hacks for You, ${name}!</h2>`;
+      state.hacks.forEach(hack => {
+        const hackDiv = document.createElement('div');
+        hackDiv.className = 'hack';
+        hackDiv.textContent = hack;
+        div.appendChild(hackDiv);
+      });
+      const btn = document.createElement('button');
+      btn.textContent = 'Join the Waitlist';
+      btn.onclick = () => {
+        state.step++;
+        render();
+      };
+      div.appendChild(btn);
+      app.appendChild(div);
+    }
+
+    function renderEmailCapture(app) {
+      const div = document.createElement('div');
+      div.innerHTML = `<h2>Get Early Access</h2>
+        <div class="question">Enter your email to join the Elevate waitlist and get your hacks by email.</div>`;
+      const emailInput = document.createElement('input');
+      emailInput.type = 'email';
+      emailInput.placeholder = 'you@email.com';
+      emailInput.value = state.email;
+      emailInput.addEventListener('input', e => {
+        state.email = e.target.value;
+      });
+      div.appendChild(emailInput);
+      if (state.emailError) {
+        const error = document.createElement('div');
+        error.className = 'error';
+        error.textContent = state.emailError;
+        div.appendChild(error);
+      }
+      const consentDiv = document.createElement('div');
+      consentDiv.className = 'consent';
+      const consentInput = document.createElement('input');
+      consentInput.type = 'checkbox';
+      consentInput.checked = state.consent;
+      consentInput.id = 'consent';
+      consentInput.addEventListener('change', e => {
+        state.consent = e.target.checked;
+      });
+      const consentLabel = document.createElement('label');
+      consentLabel.htmlFor = 'consent';
+      consentLabel.textContent = 'I agree to join the Elevate waitlist and receive updates.';
+      consentDiv.appendChild(consentInput);
+      consentDiv.appendChild(consentLabel);
+      div.appendChild(consentDiv);
+      if (state.consentError) {
+        const error = document.createElement('div');
+        error.className = 'error';
+        error.textContent = state.consentError;
+        div.appendChild(error);
+      }
+      const btn = document.createElement('button');
+      btn.textContent = state.submitting ? 'Submitting...' : 'Submit';
+      btn.disabled = state.submitting;
+      btn.onclick = async () => {
+        state.emailError = '';
+        state.consentError = '';
+        if (!validateEmail(state.email)) {
+          state.emailError = 'Please enter a valid email address.';
+          render();
+          return;
+        }
+        if (!state.consent) {
+          state.consentError = 'You must consent to join the waitlist.';
+          render();
+          return;
+        }
+        state.submitting = true;
+        render();
+        // Prepare payload
+        const payload = {
+          name: state.answers.name,
+          email: state.email,
+          ...state.answers,
+          hacks: state.hacks,
+          ...getUTMParams(),
+        };
+        try {
+          await fetch(ZAPIER_WEBHOOK_URL, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify(payload),
+          });
+          state.submitted = true;
+          state.step++;
+          render();
+        } catch (e) {
+          state.emailError = 'Submission failed. Please try again.';
+          state.submitting = false;
+          render();
+        }
+      };
+      div.appendChild(btn);
+      app.appendChild(div);
+    }
+
+    function renderThankYou(app) {
+      const div = document.createElement('div');
+      div.innerHTML = `<h2>Thank You!</h2>
+        <div class="question">You're on the waitlist. We'll be in touch soon, ${state.answers.name}!</div>`;
+      app.appendChild(div);
+    }
+
+    // --- Helpers ---
+    function validateEmail(email) {
+      return /^[^\\s@]+@[^\\s@]+\\.[^\\s@]+$/.test(email);
+    }
+
+    // --- Initial Render ---
+    render();
+  </script>
+</body>
+</html>
